@@ -8,7 +8,6 @@ from typing import Dict, List, Optional
 from playwright.async_api import Page
 
 from .audio import AudioCaptureLoop
-from .audio_chunk_manager import ImprovedAudioCaptureLoop
 from .config import get_settings
 from .events import event_publisher
 from .local_storage import get_local_storage
@@ -405,13 +404,11 @@ class SessionManager:
     async def _run_session_loops(self, session: MeetingSession, flow: MeetingFlow, page: Page) -> None:
         """Run audio capture and participant tracking loops for a session."""
         stop_event = asyncio.Event()
-
-        # Use improved audio capture loop with unified chunk data model
-        audio_loop = ImprovedAudioCaptureLoop(
+        audio_loop = AudioCaptureLoop(
             meeting_id=session.meeting_id,
             session_id=session.session_id,
-            page=page,
             stop_event=stop_event,
+            page=page,
         )
         
         # Initialize closed captions extractor
@@ -465,9 +462,6 @@ class SessionManager:
                         }
                     },
                 )
-
-                # Update audio loop with current participant info
-                audio_loop.set_participant_info(all_participants_to_save, self._bot_identifiers)
 
                 # Update participants history (ALL participants including bot)
                 current_time = datetime.now(timezone.utc).isoformat()
@@ -580,15 +574,15 @@ class SessionManager:
                 
                 await asyncio.sleep(30)  # Check every 30 seconds
 
-        async def audio_capture_task() -> None:
-            """Run the improved audio capture loop."""
-            try:
-                await audio_loop.run()
-            except Exception as e:
-                logger.error(f"Audio capture loop failed: {e}")
-            finally:
-                # Update session with total chunks captured
-                session.audio_chunks = audio_loop.chunk_counter
+        async def audio_capture_loop() -> None:
+            while not stop_event.is_set():
+                try:
+                    chunk_path = await audio_loop.capture_chunk()
+                    if chunk_path:
+                        session.audio_chunks += 1
+                except Exception as e:
+                    logger.error(f"Audio capture error: {e}")
+                await asyncio.sleep(30)
 
         async def captions_loop() -> None:
             while not stop_event.is_set():
@@ -604,7 +598,7 @@ class SessionManager:
         try:
             await asyncio.gather(
                 participants_loop(),
-                audio_capture_task(),
+                audio_capture_loop(),
                 captions_loop(),
             )
         except asyncio.CancelledError:
