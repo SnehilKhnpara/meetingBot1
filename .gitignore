@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+
+# Data (local storage)
+data/
+*.wav
+*.json
+# Cookie files (encrypted)
+**/cookies/*.enc
+**/cookies/*_metadata.json
+# Credential files (encrypted)
+**/credentials/*.enc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Playwright
+.playwright/
+
+# Logs
+*.log
+
+
+

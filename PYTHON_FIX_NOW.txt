@@ -1,0 +1,34 @@
+================================================================
+  PYTHON NOT FOUND - QUICK FIX
+================================================================
+
+You're seeing this because Python is not installed or not in PATH.
+
+QUICKEST SOLUTION:
+------------------
+1. Double-click: check_python.bat
+   (This will try to find Python and fix it automatically)
+
+2. If that doesn't work, double-click: install_python_guide.bat
+   (This will guide you through installing Python)
+
+INSTALL PYTHON (If needed):
+----------------------------
+1. Go to: https://www.python.org/downloads/
+2. Click "Download Python"
+3. Run the installer
+4. IMPORTANT: Check "Add Python to PATH" at the bottom!
+5. Click "Install Now"
+6. RESTART YOUR COMPUTER
+7. Run check_python.bat again
+
+AFTER PYTHON IS FIXED:
+----------------------
+Just run start.bat again - it will work!
+
+For detailed help, see: PYTHON_NOT_FOUND.md
+
+================================================================
+
+
+
