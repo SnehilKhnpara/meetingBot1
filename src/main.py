@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
@@ -18,7 +19,18 @@ from .session_manager import session_manager
 setup_logging()
 logger = get_logger(__name__)
 
-app = FastAPI(title="Meeting Bot API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
+    await session_manager.start()
+    logger.info("API startup complete", extra={"extra_data": {"event": "startup"}})
+    yield
+    # Shutdown (if needed in the future)
+
+
+app = FastAPI(title="Meeting Bot API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,12 +48,6 @@ if static_dir.exists():
 
 async def get_app_settings() -> Settings:
     return get_settings()
-
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    await session_manager.start()
-    logger.info("API startup complete", extra={"extra_data": {"event": "startup"}})
 
 
 @app.post(
