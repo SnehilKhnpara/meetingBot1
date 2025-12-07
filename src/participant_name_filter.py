@@ -9,46 +9,111 @@ from typing import Optional
 # HARD BLACKLIST: UI text that must NEVER be treated as participant names
 # These are exact matches or substrings that indicate UI elements, not real users
 UI_NOTIFICATION_BLACKLIST = [
-    # Exact matches from your session data
+    # From actual session data - EXACT matches that were incorrectly captured
     "backgrounds and effects",
     "you can't unmute someone else",
     "your microphone is off.",
+    "your microphone is off",
     "you can't remotely mute",
     
-    # Common UI patterns
-    "your microphone is off",
+    # Settings and effects panel
+    "visual effects",
+    "apply visual effects",
+    "background blur",
+    "blur background",
+    "change background",
+    
+    # Microphone/camera notifications  
     "your camera is off",
     "microphone is off",
     "camera is off",
-    "you can't remotely mute",
-    "you can't unmute",
+    "microphone is on",
+    "camera is on",
+    "mic is off",
+    "mic is on",
+    
+    # Remote mute/unmute notifications (with participant names embedded)
     "can't remotely mute",
     "can't unmute",
     "remotely mute",
-    "your microphone",
-    "your camera",
-    "microphone",
-    "camera",
-    "settings",
-    "options",
-    "more options",
+    "'s microphone",  # "John's microphone" - should extract "John" separately
+    
+    # Meeting controls and buttons
+    "turn on microphone",
+    "turn off microphone", 
+    "turn on camera",
+    "turn off camera",
+    "mute microphone",
+    "unmute microphone",
+    "present now",
+    "stop presenting",
+    "share screen",
+    "stop sharing",
+    "raise hand",
+    "lower hand",
+    "end call",
+    "leave call",
+    "leave meeting",
+    "end meeting",
+    
+    # Panel headers and sections
+    "in the meeting",
+    "contributors",
+    "add people",
+    "search for people",
+    "invite",
+    "share link",
+    "host controls",
+    "meeting details",
+    "other people",
+    "in this call",
+    "people in this call",
+    
+    # Waiting/connection states
     "you're the only one",
     "waiting for others",
     "connecting",
+    "reconnecting",
     "joining",
-    "present now",
+    "loading",
+    
+    # General UI text
+    "settings",
+    "options",
+    "more options",
+    "more actions",
+    "send a message",
+    "chat",
+    "activities",
+    "captions",
+    "subtitles",
+    "recording",
+    "breakout rooms",
+    "layout",
+    "tiled",
+    "spotlight",
+    "sidebar",
+    "auto",
+    
+    # Permissions
+    "allow",
+    "deny",
+    "grant",
+    "permission",
+    "access",
+    "enable",
+    "disable",
+    "denied",
+    "blocked",
+    
+    # Button text
     "turn on",
     "turn off",
     "mute",
     "unmute",
-    "enable",
-    "disable",
-    "allow",
-    "deny",
-    "permission",
-    "access",
-    "grant",
-    "denied",
+    "join now",
+    "ask to join",
+    "present",
 ]
 
 # Patterns that indicate UI notifications, not participant names
@@ -78,27 +143,37 @@ def is_valid_participant_name(name: str) -> bool:
     
     # CRITICAL: Hard blacklist check - exact matches first
     for blacklisted in UI_NOTIFICATION_BLACKLIST:
-        if blacklisted.lower() == name_lower:
+        blacklisted_lower = blacklisted.lower()
+        if blacklisted_lower == name_lower:
             return False
-        if blacklisted.lower() in name_lower:
+        if blacklisted_lower in name_lower:
             return False
     
     # Check against known UI patterns
     for pattern in UI_NOTIFICATION_PATTERNS:
-        if pattern in name_lower:
+        if pattern.lower() in name_lower:
             return False
     
     # Check if it starts with "your" or "you" (UI notifications)
     if name_lower.startswith("your ") or name_lower.startswith("you "):
         return False
     
-    # Check if it contains "can't" (UI messages)
+    # Check if it contains "can't" or "cannot" (UI messages)
     if "can't" in name_lower or "cannot" in name_lower:
         return False
     
+    # Check for possessive patterns with microphone/camera (e.g., "John's microphone")
+    if "'s microphone" in name_lower or "'s camera" in name_lower:
+        return False
+    
     # Check if it's a sentence (notifications are usually sentences)
-    if "." in name and len(name.split()) > 3:
-        # Likely a notification message
+    # But allow names with titles like "Dr. John Smith"
+    if name.count(".") > 1 and len(name.split()) > 4:
+        # Likely a notification message with multiple sentences
+        return False
+    
+    # Check if ends with period and is long (likely notification)
+    if name_lower.endswith(".") and len(name.split()) > 4:
         return False
     
     # Too short
@@ -111,6 +186,10 @@ def is_valid_participant_name(name: str) -> bool:
     
     # Must contain at least one letter
     if not any(c.isalpha() for c in name):
+        return False
+    
+    # All uppercase and contains digits (likely system text like "ERROR123")
+    if name.isupper() and any(c.isdigit() for c in name):
         return False
     
     return True

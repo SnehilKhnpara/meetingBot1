@@ -1,6 +1,16 @@
 import os
 from functools import lru_cache
+from pathlib import Path
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+# Load .env file if it exists (in project root)
+env_path = Path(__file__).parent.parent / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    # Also try loading from current directory
+    load_dotenv()
 
 
 class Settings(BaseModel):
@@ -51,6 +61,10 @@ class Settings(BaseModel):
         default="Meeting Bot",
         description="Display name used to identify the bot in participant lists. Bot will only leave when it's the only participant with this name."
     )
+    bot_google_profile_name: str | None = Field(
+        default=None,
+        description="Google profile/account name used to identify the bot (e.g., 'Snehil Khnpara'). This is the name that appears in Google Meet when logged in with a Google account."
+    )
     
     # Cookie-based authentication (optional, legacy)
     cookie_encryption_key: str | None = Field(
@@ -85,6 +99,7 @@ def get_settings() -> Settings:
         cookie_encryption_key=os.getenv("COOKIE_ENCRYPTION_KEY"),
         use_stored_cookies=os.getenv("USE_STORED_COOKIES", "false").lower() == "true",
         bot_display_name=os.getenv("BOT_DISPLAY_NAME", "Meeting Bot"),
+        bot_google_profile_name=os.getenv("BOT_GOOGLE_PROFILE_NAME"),
     )
 
 

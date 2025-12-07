@@ -8,43 +8,76 @@ echo         Meeting Bot Starting...
 echo ============================================================
 echo.
 
-REM If venv exists, use it directly (bypasses PATH issues)
-if exist ".venv\Scripts\python.exe" (
+REM Set the Python executable path
+set VENV_PYTHON=.venv\Scripts\python.exe
+
+REM Check if venv exists
+if exist "%VENV_PYTHON%" (
     echo Using existing virtual environment...
-    call .venv\Scripts\activate.bat
-    goto :start_server
+    goto :check_deps
 )
 
 REM Create venv if it doesn't exist
 echo Creating virtual environment...
+REM Try different Python commands
 python --version >nul 2>&1
-if errorlevel 1 (
-    py --version >nul 2>&1
+if not errorlevel 1 (
+    python -m venv .venv
     if errorlevel 1 (
-        echo ERROR: Python not found. Please install Python 3.11+
+        echo ERROR: Failed to create virtual environment with python
         pause
         exit /b 1
     )
-    py -m venv .venv
-) else (
-    python -m venv .venv
+    goto :check_deps
 )
 
-if errorlevel 1 (
-    echo ERROR: Failed to create virtual environment.
+py --version >nul 2>&1
+if not errorlevel 1 (
+    py -m venv .venv
+    if errorlevel 1 (
+        echo ERROR: Failed to create virtual environment with py
+        pause
+        exit /b 1
+    )
+    goto :check_deps
+)
+
+echo ERROR: Python not found. Please install Python 3.11+ and add it to PATH
+pause
+exit /b 1
+
+:check_deps
+REM Verify venv Python exists
+if not exist "%VENV_PYTHON%" (
+    echo ERROR: Virtual environment Python not found at %VENV_PYTHON%
     pause
     exit /b 1
 )
 
-call .venv\Scripts\activate.bat
-
 REM Install dependencies if needed
-python -c "import fastapi" 2>nul
+echo Checking dependencies...
+"%VENV_PYTHON%" -c "import fastapi" >nul 2>&1
 if errorlevel 1 (
     echo Installing dependencies...
-    python -m pip install --upgrade pip
-    python -m pip install -r requirements.txt
-    python -m playwright install chromium
+    echo This may take a few minutes...
+    "%VENV_PYTHON%" -m pip install --upgrade pip
+    if errorlevel 1 (
+        echo ERROR: Failed to upgrade pip
+        pause
+        exit /b 1
+    )
+    "%VENV_PYTHON%" -m pip install -r requirements.txt
+    if errorlevel 1 (
+        echo ERROR: Failed to install dependencies from requirements.txt
+        pause
+        exit /b 1
+    )
+    echo Installing Playwright Chromium...
+    "%VENV_PYTHON%" -m playwright install chromium
+    if errorlevel 1 (
+        echo WARNING: Failed to install Playwright Chromium
+    )
+    echo Dependencies installed successfully!
 )
 
 :start_server
@@ -70,7 +103,7 @@ echo.
 
 REM Test imports before starting server
 echo Testing imports...
-python -c "import sys; sys.path.insert(0, '.'); from src.main import app; print('Imports OK')" 2>&1
+"%VENV_PYTHON%" -c "import sys; sys.path.insert(0, '.'); from src.main import app; print('✅ All imports successful!')" 2>&1
 if errorlevel 1 (
     echo.
     echo ============================================================
@@ -79,16 +112,22 @@ if errorlevel 1 (
     echo.
     echo Please check the error message above.
     echo.
+    echo Trying to reinstall dependencies...
+    "%VENV_PYTHON%" -m pip install --upgrade pip
+    "%VENV_PYTHON%" -m pip install -r requirements.txt
+    echo.
+    echo Please run start.bat again after dependencies are installed.
+    echo.
     pause
     exit /b 1
 )
 
-echo Imports successful!
+echo ✅ Imports successful!
 echo.
 
 REM Start the server
 echo Starting server...
-uvicorn src.main:app --host 0.0.0.0 --port 8000
+"%VENV_PYTHON%" -m uvicorn src.main:app --host 0.0.0.0 --port 8000
 
 REM If server exits, pause so user can see any errors
 if errorlevel 1 (

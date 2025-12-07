@@ -37,15 +37,55 @@ class MeetingSummaryBuilder:
         # Filter participants - include ALL valid participants (including bot)
         # But exclude UI elements and invalid names
         all_participants = []
+        
+        # Get bot identifiers for checking
+        from .config import get_settings
+        settings = get_settings()
+        bot_identifiers = []
+        if hasattr(settings, 'bot_display_name') and settings.bot_display_name:
+            bot_identifiers.append(settings.bot_display_name.lower().strip())
+        if hasattr(settings, 'bot_google_profile_name') and settings.bot_google_profile_name:
+            bot_identifiers.append(settings.bot_google_profile_name.lower().strip())
+        
+        # Get detected bot name from session if available
+        detected_bot_name = session_data.get("bot_name_detected")
+        
         for name, data in participants_history.items():
             # Use original name if available, otherwise use name
             original_name = data.get("original_name", name)
             display_name = data.get("name", name) or name
             
-            # Check if it's the bot - case-insensitive check for (You)
+            # CRITICAL: Check if it's the bot using multiple methods
             is_bot = data.get("is_bot", False)
-            if not is_bot and original_name:
-                is_bot = "(you)" in original_name.lower()
+            
+            # Check 1: is_bot flag from history
+            if not is_bot:
+                # Check 2: "(You)" in original name
+                if original_name and "(you)" in original_name.lower():
+                    is_bot = True
+                    logger.debug(f"Bot identified via '(You)' in original_name: {original_name}")
+                # Check 3: Match detected bot name
+                elif detected_bot_name and name.lower() == detected_bot_name.lower():
+                    is_bot = True
+                    logger.debug(f"Bot identified via detected_bot_name: {detected_bot_name}")
+                # Check 4: Match bot identifiers (BOT_GOOGLE_PROFILE_NAME, etc.)
+                elif name.lower() in bot_identifiers:
+                    is_bot = True
+                    logger.debug(f"Bot identified via bot_identifiers (exact match): {name}")
+                # Check 5: Partial match with bot identifiers
+                else:
+                    name_lower = name.lower()
+                    for identifier in bot_identifiers:
+                        if len(identifier) >= 3:
+                            if identifier in name_lower or name_lower in identifier:
+                                if len(identifier) >= len(name_lower) * 0.5 or len(name_lower) >= len(identifier) * 0.5:
+                                    is_bot = True
+                                    logger.debug(f"Bot identified via bot_identifiers (partial match): {name} matches {identifier}")
+                                    break
+            
+            # Log if bot was identified
+            if is_bot:
+                logger.debug(f"✅ Participant '{name}' identified as BOT in summary builder")
             
             # Clean and validate name
             cleaned_name = clean_participant_name(display_name)
